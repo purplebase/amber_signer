@@ -25,11 +25,11 @@ class AmberSigner extends Signer {
   Future<String?> getPublicKey() async {
     try {
       final map = await _signerPlugin.getPublicKey();
-      final pubkey = map['npub'] ?? map['result'];
-      if (pubkey != null) {
-        addSignedInPubkey(pubkey);
+      final npub = map['npub'] ?? map['result'];
+      if (npub != null) {
+        addSignedInPubkey(Profile.hexFromNpub(npub));
       }
-      return pubkey;
+      return npub;
     } catch (e) {
       return null;
     }

@@ -23,8 +23,16 @@ class AmberSigner extends Signer {
 
   @override
   Future<String?> getPublicKey() async {
-    final map = await _signerPlugin.getPublicKey();
-    return map['npub'] ?? map['result'];
+    try {
+      final map = await _signerPlugin.getPublicKey();
+      final pubkey = map['npub'] ?? map['result'];
+      if (pubkey != null) {
+        signedInPubkeys.add(pubkey);
+      }
+      return pubkey;
+    } catch (e) {
+      return null;
+    }
   }
 
   @override

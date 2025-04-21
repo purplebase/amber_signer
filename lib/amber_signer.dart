@@ -27,7 +27,7 @@ class AmberSigner extends Signer {
       final map = await _signerPlugin.getPublicKey();
       final npub = map['npub'] ?? map['result'];
       if (npub != null) {
-        addSignedInPubkey(Profile.hexFromNpub(npub));
+        addSignedInPubkey(Utils.hexFromNpub(npub));
       }
       return npub;
     } catch (e) {

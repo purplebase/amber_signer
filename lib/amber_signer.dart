@@ -7,7 +7,7 @@ class AmberSigner extends Signer {
   final _signerPlugin = SignerPlugin();
   bool isAvailable = false;
 
-  AmberSigner({required super.ref});
+  AmberSigner(super.ref);
 
   @override
   Future<AmberSigner> initialize() async {
@@ -29,35 +29,37 @@ class AmberSigner extends Signer {
 
   @override
   Future<E> sign<E extends Model<E>>(
-    PartialModel<E> partialEvent, {
+    PartialModel<E> partialModel, {
     String? withPubkey,
   }) async {
     if (!isAvailable) {
       throw Exception("Cannot sign, missing Amber");
     }
 
-    if (partialEvent is PartialDirectMessage) {
+    final pubkey = withPubkey ?? await getPublicKey();
+
+    if (partialModel is PartialDirectMessage) {
       final signedMessage = await _signerPlugin.nip04Encrypt(
-        partialEvent.event.content,
+        partialModel.event.content,
         "",
         withPubkey!,
-        (partialEvent as PartialDirectMessage).event.getFirstTagValue('p')!,
+        (partialModel as PartialDirectMessage).event.getFirstTagValue('p')!,
       );
       final encryptedContent = signedMessage['result'];
-      partialEvent.event.content = encryptedContent;
+      partialModel.event.content = encryptedContent;
     }
 
     // Remove all null fields (Amber otherwise crashes)
     final map = {
-      for (final e in partialEvent.toMap().entries)
+      for (final e in partialModel.toMap().entries)
         if (e.value != null) e.key: e.value,
     };
     final signedMessage = await _signerPlugin.signEvent(
       jsonEncode(map),
       "",
-      withPubkey!,
+      pubkey!,
     );
-    final signedEvent = jsonDecode(signedMessage['event']);
-    return Model.getConstructorFor<E>()!.call(signedEvent, ref);
+    final signedMap = jsonDecode(signedMessage['event']);
+    return Model.getConstructorFor<E>()!.call(signedMap, ref);
   }
 }

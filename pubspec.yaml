@@ -17,7 +17,7 @@ dependencies:
   models:
     git:
       url: https://github.com/purplebase/models
-      ref: 31ea501
+      ref: 4f576dd
 
 dev_dependencies:
   flutter_test:

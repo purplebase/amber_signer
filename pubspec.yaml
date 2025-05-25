@@ -15,9 +15,10 @@ dependencies:
       url: https://github.com/chebizarro/flutter-signer-plugin
       ref: baa5b2
   models:
+    # path: ../models
     git:
       url: https://github.com/purplebase/models
-      ref: 0.1.0
+      ref: 833faa
 
 dev_dependencies:
   flutter_test:

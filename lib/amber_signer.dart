@@ -45,7 +45,7 @@ class AmberSigner extends Signer {
         final signedMessage = await _signerPlugin!.nip04Encrypt(
           partialModel.event.content,
           "",
-          pubkey!,
+          pubkey,
           partialModel.event.getFirstTagValue('p')!,
         );
         final encryptedContent = signedMessage['result'];
@@ -60,7 +60,7 @@ class AmberSigner extends Signer {
       final signedMessage = await _signerPlugin!.signEvent(
         jsonEncode(map),
         "",
-        pubkey!,
+        pubkey,
       );
       final signedMap = jsonDecode(signedMessage['event']);
       signedModels.add(Model.getConstructorFor<E>()!.call(signedMap, ref));
@@ -72,5 +72,55 @@ class AmberSigner extends Signer {
   Future<void> dispose() {
     _signerPlugin = null;
     return super.dispose();
+  }
+
+  @override
+  Future<String> nip04Decrypt(
+    String encryptedMessage,
+    String senderPubkey,
+  ) async {
+    final map = await _signerPlugin!.nip04Decrypt(
+      encryptedMessage,
+      "",
+      pubkey,
+      senderPubkey,
+    );
+    return map['result'];
+  }
+
+  @override
+  Future<String> nip04Encrypt(String message, String recipientPubkey) async {
+    final map = await _signerPlugin!.nip04Encrypt(
+      message,
+      "",
+      pubkey,
+      recipientPubkey,
+    );
+    return map['result'];
+  }
+
+  @override
+  Future<String> nip44Decrypt(
+    String encryptedMessage,
+    String senderPubkey,
+  ) async {
+    final map = await _signerPlugin!.nip04Decrypt(
+      encryptedMessage,
+      "",
+      pubkey,
+      senderPubkey,
+    );
+    return map['result'];
+  }
+
+  @override
+  Future<String> nip44Encrypt(String message, String recipientPubkey) async {
+    final map = await _signerPlugin!.nip04Encrypt(
+      message,
+      "",
+      pubkey,
+      recipientPubkey,
+    );
+    return map['result'];
   }
 }

@@ -11,23 +11,24 @@ class AmberSigner extends Signer {
   @override
   Future<void> initialize({bool active = true}) async {
     _signerPlugin = SignerPlugin();
-    final hasExternalSigner = await _signerPlugin!.isExternalSignerInstalled(
-      'com.greenart7c3.nostrsigner',
-    );
-    if (hasExternalSigner) {
-      await _signerPlugin!.setPackageName('com.greenart7c3.nostrsigner');
-    } else {
-      // trigger failure in super
-      return super.initialize();
+    if (!await isAvailable) {
+      throw UnsupportedError('Amber is not available');
     }
 
     final map = await _signerPlugin!.getPublicKey();
     final npub = map['npub'] ?? map['result'];
     if (npub != null) {
-      internalSetPubkey(Utils.hexFromNpub(npub));
+      internalSetPubkey(npub.toString().decodeShareable());
     }
 
     return super.initialize(active: active);
+  }
+
+  @override
+  Future<bool> get isAvailable {
+    return _signerPlugin!.isExternalSignerInstalled(
+      'com.greenart7c3.nostrsigner',
+    );
   }
 
   @override

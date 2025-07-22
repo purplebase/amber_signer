@@ -3,7 +3,7 @@ description: Amber signer for models
 version: 0.1.0
 
 environment:
-  sdk: ^3.7.0
+  sdk: ">=3.7.0 <4.0.0"
   flutter: ">=1.17.0"
 
 dependencies:
@@ -25,4 +25,4 @@ dependency_overrides:
     # path: ../models
     git:
       url: https://github.com/purplebase/models
-      ref: main
+      ref: 501c8cf

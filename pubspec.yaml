@@ -1,6 +1,6 @@
 name: amber_signer
 description: Amber signer for models
-version: 0.1.0
+version: 0.2.0
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
@@ -13,7 +13,7 @@ dependencies:
     git:
       url: https://github.com/chebizarro/flutter-signer-plugin
       ref: baa5b2
-  models: ^0.3.0
+  models: ^0.3.3
 
 dev_dependencies:
   flutter_test:
@@ -25,4 +25,4 @@ dependency_overrides:
     # path: ../models
     git:
       url: https://github.com/purplebase/models
-      ref: 501c8cf
+      ref: main

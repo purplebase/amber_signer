@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:models/models.dart';
+import 'package:riverpod/riverpod.dart';
 import 'package:signer_plugin/signer_plugin.dart';
 
 const kAppId = 'com.greenart7c3.nostrsigner';
@@ -8,19 +9,150 @@ const kPubkeyStorageKey = 'amber_pubkey';
 const kDummySignerPrivateKey =
     '7930da683052b5a980add45c6ae310018d1a16245f246ec6408059539e7563d1';
 
+/// Abstract interface for persisting and retrieving the Amber signer's pubkey.
+///
+/// Implementors can provide custom persistence strategies such as:
+/// - Shared preferences
+/// - Secure storage (flutter_secure_storage)
+/// - File-based storage
+/// - Platform keychain/keystore
+///
+/// Example implementation using secure storage:
+/// ```dart
+/// class SecureStoragePubkeyPersistence implements AmberPubkeyPersistence {
+///   static const _key = 'amber_pubkey';
+///   final FlutterSecureStorage _storage;
+///
+///   SecureStoragePubkeyPersistence({FlutterSecureStorage? storage})
+///       : _storage = storage ?? const FlutterSecureStorage();
+///
+///   @override
+///   Future<void> persistPubkey(String pubkey) async {
+///     await _storage.write(key: _key, value: pubkey);
+///   }
+///
+///   @override
+///   Future<String?> loadPubkey() async {
+///     return await _storage.read(key: _key);
+///   }
+///
+///   @override
+///   Future<void> clearPubkey() async {
+///     await _storage.delete(key: _key);
+///   }
+/// }
+/// ```
+abstract class AmberPubkeyPersistence {
+  /// Persists the pubkey for future auto sign-in.
+  Future<void> persistPubkey(String pubkey);
+
+  /// Retrieves the previously persisted pubkey.
+  /// Returns null if no pubkey has been persisted.
+  Future<String?> loadPubkey();
+
+  /// Clears the persisted pubkey.
+  Future<void> clearPubkey();
+}
+
+/// Default persistence using CustomData stored via storageNotifierProvider.
+///
+/// This implementation stores the pubkey as a CustomData Nostr event,
+/// which is the original behavior of [AmberSigner].
+class CustomDataPubkeyPersistence implements AmberPubkeyPersistence {
+  final Ref _ref;
+  Bip340PrivateKeySigner? _customDataSigner;
+
+  /// Creates a new CustomDataPubkeyPersistence instance.
+  ///
+  /// [ref] is the reference used for dependency injection and state management.
+  CustomDataPubkeyPersistence(this._ref);
+
+  Future<void> _ensureSigner() async {
+    _customDataSigner ??= Bip340PrivateKeySigner(kDummySignerPrivateKey, _ref);
+    if (!_customDataSigner!.isSignedIn) {
+      await _customDataSigner!.signIn(registerSigner: false);
+    }
+  }
+
+  @override
+  Future<void> persistPubkey(String pubkey) async {
+    await _ensureSigner();
+    final partialCustomData = PartialCustomData(
+      identifier: kPubkeyStorageKey,
+      content: pubkey,
+    );
+    final signedCustomData = await partialCustomData.signWith(
+      _customDataSigner!,
+    );
+    await _ref.read(storageNotifierProvider.notifier).save({signedCustomData});
+  }
+
+  @override
+  Future<String?> loadPubkey() async {
+    try {
+      final customData = await _ref
+          .read(storageNotifierProvider.notifier)
+          .query(
+            RequestFilter<CustomData>(
+              authors: {Utils.derivePublicKey(kDummySignerPrivateKey)},
+              tags: {
+                '#d': {kPubkeyStorageKey},
+              },
+              limit: 1,
+            ).toRequest(),
+            source: const LocalSource(),
+          );
+      final persistedData = customData.firstOrNull;
+      if (persistedData != null && persistedData.content.isNotEmpty) {
+        return persistedData.content;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  @override
+  Future<void> clearPubkey() async {
+    await _ensureSigner();
+    final partialCustomData = PartialCustomData(
+      identifier: kPubkeyStorageKey,
+      content: '',
+    );
+    final signedCustomData = await partialCustomData.signWith(
+      _customDataSigner!,
+    );
+    await _ref.read(storageNotifierProvider.notifier).save({signedCustomData});
+  }
+}
+
 /// A signer implementation that integrates with the Amber Nostr signer app.
 ///
 /// This class provides a bridge between your application and the Amber signer,
 /// allowing for secure signing of Nostr events, encryption/decryption of messages,
 /// and session management with persistent storage.
+///
+/// The persistence strategy for storing the user's public key can be customized
+/// by providing an [AmberPubkeyPersistence] implementation. By default, it uses
+/// [CustomDataPubkeyPersistence] which stores the pubkey as a CustomData Nostr event.
+///
+/// Example with custom persistence:
+/// ```dart
+/// final signer = AmberSigner(
+///   ref,
+///   persistence: SecureStoragePubkeyPersistence(),
+/// );
+/// ```
 class AmberSigner extends Signer {
   SignerPlugin? _signerPlugin;
-  Bip340PrivateKeySigner? _customDataSigner;
+  late final AmberPubkeyPersistence _persistence;
 
   /// Creates a new AmberSigner instance.
   ///
   /// [ref] is the reference used for dependency injection and state management.
-  AmberSigner(super.ref);
+  /// [persistence] is the strategy for persisting the pubkey. Defaults to
+  /// [CustomDataPubkeyPersistence] if not provided.
+  AmberSigner(super.ref, {AmberPubkeyPersistence? persistence}) {
+    _persistence = persistence ?? CustomDataPubkeyPersistence(ref);
+  }
 
   /// Signs in to Amber and retrieves the user's public key.
   ///
@@ -60,7 +192,7 @@ class AmberSigner extends Signer {
       internalSetPubkey(pubkeyHex);
 
       // Persist the pubkey for future app restarts
-      await _persistPubkey(pubkeyHex);
+      await _persistence.persistPubkey(pubkeyHex);
     }
 
     return super.signIn(setAsActive: setAsActive);
@@ -84,28 +216,14 @@ class AmberSigner extends Signer {
   /// ```
   Future<bool> attemptAutoSignIn() async {
     try {
-      final customData = await ref
-          .read(storageNotifierProvider.notifier)
-          .query(
-            RequestFilter<CustomData>(
-              authors: {Utils.derivePublicKey(kDummySignerPrivateKey)},
-              tags: {
-                '#d': {kPubkeyStorageKey},
-              },
-              limit: 1,
-            ).toRequest(),
-            source: const LocalSource(),
-          );
+      final pubkey = await _persistence.loadPubkey();
 
-      final persistedData = customData.firstOrNull;
-
-      if (persistedData != null && persistedData.content.isNotEmpty) {
-        internalSetPubkey(persistedData.content);
+      if (pubkey != null && pubkey.isNotEmpty) {
+        internalSetPubkey(pubkey);
         await super.signIn(setAsActive: true);
         return true;
-      } else {
-        return false;
       }
+      return false;
     } catch (e) {
       return false;
     }
@@ -209,50 +327,9 @@ class AmberSigner extends Signer {
     _signerPlugin = null;
 
     // Clear persisted pubkey when signing out
-    await _clearPersistedPubkey();
+    await _persistence.clearPubkey();
 
     return super.signOut();
-  }
-
-  /// Persist pubkey to storage
-  Future<void> _persistPubkey(String pubkey) async {
-    await _ensureCustomDataSigner();
-    final partialCustomData = PartialCustomData(
-      identifier: kPubkeyStorageKey,
-      content: pubkey,
-    );
-
-    final signedCustomData = await partialCustomData.signWith(
-      _customDataSigner!,
-    );
-    await ref.read(storageNotifierProvider.notifier).save({signedCustomData});
-  }
-
-  /// Clear persisted pubkey from CustomData storage
-  Future<void> _clearPersistedPubkey() async {
-    await _ensureCustomDataSigner();
-    // Create an empty CustomData to replace the existing one
-    final partialCustomData = PartialCustomData(
-      identifier: kPubkeyStorageKey,
-      content: '', // Empty content to clear the pubkey
-    );
-
-    final signedCustomData = await partialCustomData.signWith(
-      _customDataSigner!,
-    );
-    await ref.read(storageNotifierProvider.notifier).save({signedCustomData});
-    signedCustomData;
-  }
-
-  Future<void> _ensureCustomDataSigner() async {
-    // Use a private key signer to save the current pubkey
-    // as CustomData (user preference)
-    _customDataSigner = Bip340PrivateKeySigner(kDummySignerPrivateKey, ref);
-    if (_customDataSigner!.isSignedIn == false) {
-      // Initialize signer prevent it from registering
-      // in user space as it is only used internally
-      await _customDataSigner!.signIn(registerSigner: false);
-    }
   }
 
   /// Decrypts a NIP-04 encrypted message using the Amber signer.

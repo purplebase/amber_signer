@@ -14,6 +14,7 @@ dependencies:
       url: https://github.com/chebizarro/flutter-signer-plugin
       ref: baa5b2
   models: ^0.3.3
+  riverpod: ^2.6.1
 
 dev_dependencies:
   flutter_test:
@@ -25,4 +26,4 @@ dependency_overrides:
     # path: ../models
     git:
       url: https://github.com/purplebase/models
-      ref: ca70b39728acf0de44354615d3b161b4a36a209c
+      ref: 15253fa

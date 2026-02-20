@@ -154,6 +154,17 @@ class AmberSigner extends Signer {
     _persistence = persistence ?? CustomDataPubkeyPersistence(ref);
   }
 
+  /// Initializes the signer by attempting to restore a previously persisted pubkey.
+  ///
+  /// This does not register the signer in the provider graph — call [signIn] for that.
+  @override
+  Future<void> initialize() async {
+    final pubkey = await _persistence.loadPubkey();
+    if (pubkey != null && pubkey.isNotEmpty) {
+      internalSetPubkey(pubkey);
+    }
+  }
+
   /// Signs in to Amber and retrieves the user's public key.
   ///
   /// This method checks if Amber is available and retrieves the public key
@@ -303,9 +314,9 @@ class AmberSigner extends Signer {
       );
       final signedMap = jsonDecode(signedMessage['event']);
       signedModels.add(
-        Model.getConstructorForKind(
-              partialModel.event.kind,
-            )!.call(signedMap, ref)
+        ModelRegistry.instance
+                .getConstructorForKind(partialModel.event.kind)!
+                .call(signedMap, reader)
             as E,
       );
     }

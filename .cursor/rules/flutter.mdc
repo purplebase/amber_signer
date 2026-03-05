@@ -1,0 +1,49 @@
+---
+description: Flutter-specific conventions (supplements dart.mdc)
+globs: ["**/*.dart", "**/pubspec.yaml"]
+---
+
+# Flutter Conventions
+
+Dart fundamentals are in `dart.mdc`. This file covers Flutter-specific patterns only.
+
+## State Management
+
+- Use Flutter Hooks (`HookWidget`, `HookConsumerWidget`) for local widget state — not `StatefulWidget`.
+- Use `useState`, `useAnimationController`, `useEffect` over manual `State` classes.
+- Use Riverpod providers for shared/global state. Keep providers focused and composable.
+- Prefer `ref.watch` for reactive UI, `ref.read` in callbacks only.
+
+## Data & Async in Widgets
+
+- Never `await` inside `build()`. Move async work to providers or `useEffect`.
+- All async operations must have explicit loading, success, and error states in the UI.
+- All async work must be cancellable. Pass `CancellationToken` or use `ref.onDispose`.
+
+## Widget Structure
+
+- One widget per file. File name matches widget name in `snake_case`.
+- Keep `build()` methods short — extract sub-widgets or use helper methods.
+- Widgets must not manage relay connections, storage, or background jobs.
+- Use `const` constructors wherever possible.
+
+## Naming (Flutter additions)
+
+- Providers: `<noun>Provider` or `<noun>NotifierProvider`.
+
+## Testing
+
+- Test providers and services, not widget internals.
+- Use `ProviderContainer` for unit-testing Riverpod providers.
+- Widget tests for critical UI states: loading, error, empty, success.
+
+## Dependencies
+
+- Run `fvm flutter pub get` after any `pubspec.yaml` change.
+- Pin Flutter SDK version via FVM (`fvm use <version>`).
+
+## Build
+
+- Assume Android as default target unless instructed otherwise.
+- Release builds must be reproducible (see INVARIANTS.md).
+- Run `flutter analyze` — fix all issues before committing.

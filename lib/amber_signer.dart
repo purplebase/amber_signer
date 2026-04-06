@@ -314,9 +314,8 @@ class AmberSigner extends Signer {
       );
       final signedMap = jsonDecode(signedMessage['event']);
       signedModels.add(
-        ModelRegistry.instance
-                .getConstructorForKind(partialModel.event.kind)!
-                .call(signedMap, reader)
+        Model.getConstructorForKind(partialModel.event.kind)!
+                .call(signedMap, ref)
             as E,
       );
     }

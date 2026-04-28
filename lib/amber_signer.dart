@@ -2,7 +2,10 @@ import 'dart:convert';
 
 import 'package:models/models.dart';
 import 'package:riverpod/riverpod.dart';
-import 'package:signer_plugin/signer_plugin.dart';
+
+import 'src/signer_plugin.dart';
+
+export 'src/signer_plugin.dart' show SignerPlugin, SignerAppInfo;
 
 const kAppId = 'com.greenart7c3.nostrsigner';
 const kPubkeyStorageKey = 'amber_pubkey';
@@ -322,6 +325,16 @@ class AmberSigner extends Signer {
     return signedModels;
   }
 
+  /// Cancels every in-flight Amber signer request.
+  ///
+  /// Each pending awaiter completes with a `PlatformException(code: 'CANCELLED')`.
+  /// Call this before launching activities that may recreate the host (e.g.
+  /// the system package installer) to avoid stale signer replies racing with
+  /// activity result delivery.
+  Future<void> cancelPending() async {
+    await (_signerPlugin ?? SignerPlugin()).cancelPending();
+  }
+
   /// Signs out from the Amber signer and clears any persisted session data.
   ///
   /// This method cleans up the signer plugin instance and removes any stored
@@ -334,6 +347,12 @@ class AmberSigner extends Signer {
   /// ```
   @override
   Future<void> signOut() async {
+    // Cancel any in-flight Amber requests so awaiters fail fast instead of
+    // resolving against a now-invalidated session.
+    try {
+      await _signerPlugin?.cancelPending();
+    } catch (_) {}
+
     _signerPlugin = null;
 
     // Clear persisted pubkey when signing out

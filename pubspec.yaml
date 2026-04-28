@@ -1,6 +1,6 @@
 name: amber_signer
-description: Amber signer for models
-version: 0.2.0
+description: Amber signer for models (vendored native plugin with cancellable, reply-safe activity results)
+version: 0.3.0
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
@@ -9,10 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  signer_plugin:
-    git:
-      url: https://github.com/chebizarro/flutter-signer-plugin
-      ref: baa5b2
   models: ^0.3.3
   riverpod: ^2.6.1
 
@@ -27,3 +23,10 @@ dependency_overrides:
     git:
       url: https://github.com/purplebase/models
       ref: eb79db4c06c3b43e6ca64848e1228702d99ac3ce
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dev.purplebase.amber_signer
+        pluginClass: AmberSignerPlugin

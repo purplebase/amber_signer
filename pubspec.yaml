@@ -1,6 +1,7 @@
 name: amber_signer
-description: Amber signer for models (vendored native plugin with cancellable, reply-safe activity results)
-version: 0.3.0
+description: Amber signer for models (vendored native plugin with cancellable,
+  reply-safe activity results)
+version: 0.4.0
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
